@@ -3,7 +3,6 @@ package com.mlrecommendation.gopi.gopimlrecommendation.utils;
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
-import android.text.Editable;
 import android.util.Log;
 import android.os.SystemClock;
 
@@ -16,11 +15,9 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.Random;
 
 import android.widget.Toast;
 import com.mlrecommendation.gopi.gopimlrecommendation.MyApplication;
@@ -29,7 +26,6 @@ import io.reactivex.CompletableEmitter;
 import io.reactivex.schedulers.Schedulers;
 
 import org.tensorflow.lite.Interpreter;
-import org.tensorflow.lite.Tensor;
 
 
 public class StickerSuggestionsUtils {
@@ -47,8 +43,9 @@ public class StickerSuggestionsUtils {
             + "    (?:[\\w_]+)                     # Words without apostrophes or dashes.\n"
             + "    |\n"
             + "    (?:[!?*&,]{1,})    ";
-    private final ArrayList<String> prevMsgLines;
-    private final ArrayList<String> typedMsgLines;
+    private ArrayList<String> prevMsgLines;
+    private ArrayList<String> typedMsgLines;
+    private ArrayList<String> clusteredMsgLines;
     private ArrayList<String> outputLines;
 
 
@@ -77,21 +74,18 @@ public class StickerSuggestionsUtils {
 //    private int typedUNKIndex = -1;
     Random rand = new Random();
     //private ByteBuffer inputData = null;
-    float[][] probabilities = new float[1][9936];
+    float[][] probabilities;
     boolean isNewFlow = true;
+    Interpreter tflite;
+    private static final float MIN_VALUE = 0.001f;
+    private static StickerSuggestionsUtils instance;
 
 
-    public StickerSuggestionsUtils() {
+    private StickerSuggestionsUtils() {
         this.context = MyApplication.Companion.getInstance();
         loadMLModel();
-        MY_PATTERN = Pattern.compile(regex);
-        if (isNewFlow) {
-            prevMsgLines = loadTextFileFromAssets(context, "vocab.prev");
-            typedMsgLines = loadTextFileFromAssets(context, "vocab.typed");
-        } else {
-            prevMsgLines = loadTextFileFromAssets(context, "old_vocab_2.prev");
-            typedMsgLines = loadTextFileFromAssets(context, "old_vocab_2.typed");
-        }
+
+
 //        outputLines = loadTextFileFromAssets(context, "vocab.stickers");
         //inputData = ByteBuffer.allocateDirect((prevMsgLines.size()+typedMsgLines.size()));
         //inputData.order(ByteOrder.nativeOrder());
@@ -99,19 +93,29 @@ public class StickerSuggestionsUtils {
         //currMessageEmbedding = loadEmbeddingFromFile(context,"vocab.typed" );
     }
 
-    Interpreter tflite;
+    public static StickerSuggestionsUtils getInstance() {
+        if(instance == null){
+            instance = new StickerSuggestionsUtils();
+        }
+        return instance;
+    }
+
+
 
     private void loadMLModel() {
         Completable.create((CompletableEmitter emitter) -> {
             try {
-                if (isNewFlow) {
-                    mappedByteBuffer = loadModelFile(context.getAssets(), "srmodel_32.tflite");
-                } else {
-                    mappedByteBuffer = loadModelFile(context.getAssets(), "old_sr.tflite");
-                }
+                long currentUsedMemoryInMB = CommonUtils.getCurrentUsedMemoryInMB();
+                mappedByteBuffer = loadModelFile(context.getAssets(), "srmodel_8.tflite");
                 tflite = new Interpreter(mappedByteBuffer);
+                MY_PATTERN = Pattern.compile(regex);
+                prevMsgLines = loadTextFileFromAssets(context, "vocab.prev");
+                typedMsgLines = loadTextFileFromAssets(context, "vocab.typed");
+                clusteredMsgLines = loadTextFileFromAssets(context, "cluster_map.out");
+                MyApplication.Companion.getInstance().showToast("TFLite LOADING SUCCESS*** memory "+ (CommonUtils.getCurrentUsedMemoryInMB() - currentUsedMemoryInMB));
             } catch (Throwable e) {
                 e.printStackTrace();
+                MyApplication.Companion.getInstance().showToast("TFLite LOADING FAILED*** with " + e.getMessage());
             }
             emitter.onComplete();
         }).subscribeOn(Schedulers.io())
@@ -129,7 +133,7 @@ public class StickerSuggestionsUtils {
         }
         return pairArrayList;*/
         if (tflite == null) {
-            Toast.makeText(context,"TFLite loadiing faiiled", Toast.LENGTH_SHORT).show();
+//            Toast.makeText(context,"TFLite loadiing faiiled", Toast.LENGTH_SHORT).show();
             return;
         }
         try{
@@ -137,18 +141,22 @@ public class StickerSuggestionsUtils {
             String typedMessage = messageTyped;
             ArrayList<String> prevMsgTokens = getTokens(lastMsgMessageText);
             ArrayList<String> currentMsgTokens = getTokens(typedMessage);
-            getPrevMsgInput(prevMsgTokens);
-            getTypedMsgInput(currentMsgTokens);
-            ByteBuffer inputData = ConvertInputtoByteBufferQuantize(prevMsgTokens,currentMsgTokens);
+            probabilities = new float[1][clusteredMsgLines.size()];
+//            getPrevMsgInput(prevMsgTokens);
+//            getTypedMsgInput(currentMsgTokens);
+            Object[] objects = convertQuantizeInput(prevMsgTokens, currentMsgTokens);
+            PriorityQueue<PriorityIndexClass> queue = new PriorityQueue<>(100);
+//            ByteBuffer inputData = ConvertInputtoByteBufferQuantize(prevMsgTokens,currentMsgTokens);
             //ByteBuffer input = ConvertInputtoByteBuffer(prevMsgTokens,currentMsgTokens );
             //ByteBuffer input = ConvertInputtoByteBufferDense(prevMsgTokens,currentMsgTokens );
             //float[][] confidence = new float[1][1];
 
-            int index = tflite.getInputIndex("Model/data_x_prevmsg");
+//            int index = tflite.getInputIndex("Model/data_x_prevmsg");
 //            Tensor tenssor = tflite.getInputTensor(0-);
-            int[][] floats1 = new int[1][50000];
-            int[][] floatsOther = new int[1][14066];
-            Object[] objects = new Object[]{floats1, floatsOther};
+//            int[][] floats1 = new int[1][50000];
+//            int[][] floatsOther = new int[1][14066];
+//
+//            Object[] objects = new Object[]{floats1, floatsOther};
             HashMap<Integer, Object> map = new HashMap<>();
             map.put(0, probabilities);
 
@@ -171,12 +179,33 @@ public class StickerSuggestionsUtils {
                 Log.e(TAG, "i: " + i + " " + probabilities[0][i]);
             }
             Log.e(TAG, "Number of prediction yet " + numberOfprediction);
-            Toast.makeText(context," Success with "+ numberOfprediction ,Toast.LENGTH_SHORT).show();
+            Toast.makeText(context," Success with "+ probabilities[0][1] ,Toast.LENGTH_SHORT).show();
         }
         catch (Exception e) {
             e.printStackTrace();
             Toast.makeText(context," crashed with "+ e.getMessage(),Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private Object[] convertQuantizeInput(ArrayList<String> prevMsgTokens, ArrayList<String> currentMsgTokens) {
+        int[][] prevInputAry = new int[1][prevMsgLines.size()];
+        int[][] typingInputAry = new int[1][typedMsgLines.size()];
+
+        for (String prevEnteredToken: prevMsgTokens){
+            final int foundIndex = prevMsgLines.indexOf(prevEnteredToken);
+            if ((foundIndex > -1)) {
+                prevInputAry[0][foundIndex] = 1;
+            }
+        }
+
+        for (String item: currentMsgTokens){
+            final int foundIndex = typedMsgLines.indexOf(item);
+            if ((foundIndex > -1)) {
+                typingInputAry[0][foundIndex] = 1;
+            }
+        }
+
+        return new Object[]{prevInputAry, typingInputAry};
     }
 
     private ByteBuffer ConvertInputtoByteBufferDense(ArrayList<String> prevMsgTokens, ArrayList<String> currentMsgTokens) {
@@ -318,7 +347,7 @@ public class StickerSuggestionsUtils {
         return inputData;
     }
 
-    private ByteBuffer ConvertInputtoByteBuffer(ArrayList<String> prevMsgTokens, ArrayList<String> currentMsgTokens){
+    /*private ByteBuffer ConvertInputtoByteBuffer(ArrayList<String> prevMsgTokens, ArrayList<String> currentMsgTokens){
         ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4*15);
         //byteBuffer.order(ByteOrder.nativeOrder());
         Log.e(TAG, "Length of PrevMsgToken: " + prevMsgTokens.size());
@@ -351,7 +380,7 @@ public class StickerSuggestionsUtils {
         }
         Log.e(TAG, "Converted byte Array" + prevMsgTokens.size());
         return byteBuffer;
-    }
+    }*/
 
     //@Override
     public void close() {

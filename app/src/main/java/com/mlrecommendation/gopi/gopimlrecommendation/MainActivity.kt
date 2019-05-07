@@ -11,10 +11,9 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        val stickerSuggestionsUtils = StickerSuggestionsUtils()
 
         activateMlBtn.setOnClickListener { textEt.text.toString().takeIf { it.isNotBlank() && it.length > 2 }?.run {
-            stickerSuggestionsUtils.getRecStickers("", this)
+            StickerSuggestionsUtils.getInstance().getRecStickers("", this)
         } ?: Toast.makeText(this,"length less than 2", Toast.LENGTH_SHORT).show() }
     }
 }
