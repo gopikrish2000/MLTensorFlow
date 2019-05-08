@@ -43,9 +43,9 @@ public class StickerSuggestionsUtils {
             + "    (?:[\\w_]+)                     # Words without apostrophes or dashes.\n"
             + "    |\n"
             + "    (?:[!?*&,]{1,})    ";
-    private ArrayList<String> prevMsgLines;
-    private ArrayList<String> typedMsgLines;
-    private ArrayList<String> clusteredMsgLines;
+    private ArrayList<String> prevMsgLines = new ArrayList<>();
+    private ArrayList<String> typedMsgLines = new ArrayList<>();
+    private ArrayList<String> clusteredMsgLines = new ArrayList<>();
     private ArrayList<String> outputLines;
 
 
@@ -106,12 +106,12 @@ public class StickerSuggestionsUtils {
         Completable.create((CompletableEmitter emitter) -> {
             try {
                 long currentUsedMemoryInMB = CommonUtils.getCurrentUsedMemoryInMB();
-                mappedByteBuffer = loadModelFile(context.getAssets(), "srmodel_8.tflite");
+                mappedByteBuffer = loadModelFile(context.getAssets(), "bow_model_100_8.tflite");
                 tflite = new Interpreter(mappedByteBuffer);
                 MY_PATTERN = Pattern.compile(regex);
-                prevMsgLines = loadTextFileFromAssets(context, "vocab.prev");
-                typedMsgLines = loadTextFileFromAssets(context, "vocab.typed");
-                clusteredMsgLines = loadTextFileFromAssets(context, "cluster_map.out");
+//                prevMsgLines = loadTextFileFromAssets(context, "vocab.prev");
+//                typedMsgLines = loadTextFileFromAssets(context, "vocab.typed");
+//                clusteredMsgLines = loadTextFileFromAssets(context, "cluster_map.out");
                 MyApplication.Companion.getInstance().showToast("TFLite LOADING SUCCESS*** memory "+ (CommonUtils.getCurrentUsedMemoryInMB() - currentUsedMemoryInMB));
             } catch (Throwable e) {
                 e.printStackTrace();
@@ -141,11 +141,12 @@ public class StickerSuggestionsUtils {
             String typedMessage = messageTyped;
             ArrayList<String> prevMsgTokens = getTokens(lastMsgMessageText);
             ArrayList<String> currentMsgTokens = getTokens(typedMessage);
-            probabilities = new float[1][clusteredMsgLines.size()];
+//            probabilities = new float[1][clusteredMsgLines.size()];
+            float[][] probabilities = new float[1][99999];
 //            getPrevMsgInput(prevMsgTokens);
 //            getTypedMsgInput(currentMsgTokens);
             Object[] objects = convertQuantizeInput(prevMsgTokens, currentMsgTokens);
-            PriorityQueue<PriorityIndexClass> queue = new PriorityQueue<>(100);
+//            PriorityQueue<PriorityIndexClass> queue = new PriorityQueue<>(100);
 //            ByteBuffer inputData = ConvertInputtoByteBufferQuantize(prevMsgTokens,currentMsgTokens);
             //ByteBuffer input = ConvertInputtoByteBuffer(prevMsgTokens,currentMsgTokens );
             //ByteBuffer input = ConvertInputtoByteBufferDense(prevMsgTokens,currentMsgTokens );
@@ -178,6 +179,7 @@ public class StickerSuggestionsUtils {
             for (int i = 0; i < 10; i++) {
                 Log.e(TAG, "i: " + i + " " + probabilities[0][i]);
             }
+//            tflite.close();
             Log.e(TAG, "Number of prediction yet " + numberOfprediction);
             Toast.makeText(context," Success with "+ probabilities[0][1] ,Toast.LENGTH_SHORT).show();
         }
@@ -188,8 +190,10 @@ public class StickerSuggestionsUtils {
     }
 
     private Object[] convertQuantizeInput(ArrayList<String> prevMsgTokens, ArrayList<String> currentMsgTokens) {
-        int[][] prevInputAry = new int[1][prevMsgLines.size()];
-        int[][] typingInputAry = new int[1][typedMsgLines.size()];
+        /*int[][] prevInputAry = new int[1][prevMsgLines.size()];
+        int[][] typingInputAry = new int[1][typedMsgLines.size()];*/
+        int[][] prevInputAry = new int[1][50000];
+        int[][] typingInputAry = new int[1][50000];
 
         for (String prevEnteredToken: prevMsgTokens){
             final int foundIndex = prevMsgLines.indexOf(prevEnteredToken);
