@@ -106,7 +106,7 @@ public class StickerSuggestionsUtils {
         Completable.create((CompletableEmitter emitter) -> {
             try {
                 long currentUsedMemoryInMB = CommonUtils.getCurrentUsedMemoryInMB();
-                mappedByteBuffer = loadModelFile(context.getAssets(), "bow_model_100_8.tflite");
+                mappedByteBuffer = loadModelFile(context.getAssets(), "srmodel_8.tflite");
                 tflite = new Interpreter(mappedByteBuffer);
                 MY_PATTERN = Pattern.compile(regex);
 //                prevMsgLines = loadTextFileFromAssets(context, "vocab.prev");
@@ -137,15 +137,20 @@ public class StickerSuggestionsUtils {
             return;
         }
         try{
+
             String lastMsgMessageText = "last";
             String typedMessage = messageTyped;
             ArrayList<String> prevMsgTokens = getTokens(lastMsgMessageText);
             ArrayList<String> currentMsgTokens = getTokens(typedMessage);
 //            probabilities = new float[1][clusteredMsgLines.size()];
-            float[][] probabilities = new float[1][99999];
+//            float[][] probabilities = new float[1][49999];
+            float[][] probabilities = new float[1][9936];
 //            getPrevMsgInput(prevMsgTokens);
 //            getTypedMsgInput(currentMsgTokens);
-            Object[] objects = convertQuantizeInput(prevMsgTokens, currentMsgTokens);
+//            Object[] objects = convertQuantizeInput(prevMsgTokens, currentMsgTokens);
+            Object[] objects = new Object[]{new int[1][50000], new int[1][14066]};  // use tflite.getInputTensor(0) -> see shapeCopy which shows size 0 = 1 , 1 = 14066 ...
+
+
 //            PriorityQueue<PriorityIndexClass> queue = new PriorityQueue<>(100);
 //            ByteBuffer inputData = ConvertInputtoByteBufferQuantize(prevMsgTokens,currentMsgTokens);
             //ByteBuffer input = ConvertInputtoByteBuffer(prevMsgTokens,currentMsgTokens );
@@ -165,11 +170,12 @@ public class StickerSuggestionsUtils {
 //            Log.d(TAG, "My tensor: " + tenssor.toString());
 //            tflite.run(concatenate(prevMessageIndices, typedMessageIndices), probabilities);
 //            tflite.run(random(null,null), probabilities);
-            tflite.runForMultipleInputsOutputs(objects, map);
+
             long startTime = SystemClock.uptimeMillis();
+            tflite.runForMultipleInputsOutputs(objects, map);
 //            tflite.run(random(prevMsgTokens,currentMsgTokens), probabilities);
             long endTime = SystemClock.uptimeMillis();
-            Log.d(TAG, "Timecost to run model inference: " + Long.toString(endTime - startTime));
+            Log.d(TAG, "Timecost to run model inference: " + (endTime - startTime));
             numberOfprediction++;
             //tflite.runForMultipleInputsOutputs(new int[][]{prevMessageIndices,typedMessageIndices},outputMap);
             //float[][] outputArray = (float[][]) outputMap.get(1);
@@ -181,7 +187,7 @@ public class StickerSuggestionsUtils {
             }
 //            tflite.close();
             Log.e(TAG, "Number of prediction yet " + numberOfprediction);
-            Toast.makeText(context," Success with "+ probabilities[0][1] ,Toast.LENGTH_SHORT).show();
+            Toast.makeText(context," Success with "+ probabilities[0][1] + " in time " + (endTime - startTime) ,Toast.LENGTH_SHORT).show();
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -195,7 +201,7 @@ public class StickerSuggestionsUtils {
         int[][] prevInputAry = new int[1][50000];
         int[][] typingInputAry = new int[1][50000];
 
-        for (String prevEnteredToken: prevMsgTokens){
+       /* for (String prevEnteredToken: prevMsgTokens){
             final int foundIndex = prevMsgLines.indexOf(prevEnteredToken);
             if ((foundIndex > -1)) {
                 prevInputAry[0][foundIndex] = 1;
@@ -207,9 +213,20 @@ public class StickerSuggestionsUtils {
             if ((foundIndex > -1)) {
                 typingInputAry[0][foundIndex] = 1;
             }
-        }
+        }*/
 
         return new Object[]{prevInputAry, typingInputAry};
+    }
+
+    private Object[] convertCNNQuantizeInput(ArrayList<String> prevMsgTokens, ArrayList<String> currentMsgTokens) {
+        int[][] prevInputAry = new int[1][50000];
+        int[][] typingInputAry = new int[1][50];
+        int[] charLenArray = new int[]{50};
+
+        for (int i = 0; i < 50; i++) {
+            typingInputAry[0][i] = i;
+        }
+        return new Object[]{prevInputAry, typingInputAry, charLenArray};
     }
 
     private ByteBuffer ConvertInputtoByteBufferDense(ArrayList<String> prevMsgTokens, ArrayList<String> currentMsgTokens) {
@@ -451,9 +468,9 @@ public class StickerSuggestionsUtils {
 
         Matcher m = MY_PATTERN.matcher(msg);
         while (m.find()) {
-            Log.d(TAG, "Start index: " + m.start());
-            Log.d(TAG, "End index: " + m.end() + " ");
-            Log.d(TAG, m.group());
+//            Log.d(TAG, "Start index: " + m.start());
+//            Log.d(TAG, "End index: " + m.end() + " ");
+//            Log.d(TAG, m.group());
             tokens.add(m.group());
         }
         String[] plainTextTokens = msg.replaceAll(regex, " ").split(" ");
