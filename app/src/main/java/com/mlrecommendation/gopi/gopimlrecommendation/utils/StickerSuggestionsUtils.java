@@ -7,10 +7,7 @@ import android.util.Log;
 import android.os.SystemClock;
 
 
-import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.ByteBuffer;
@@ -25,7 +22,10 @@ import io.reactivex.Completable;
 import io.reactivex.CompletableEmitter;
 import io.reactivex.schedulers.Schedulers;
 
+import kotlin.io.ByteStreamsKt;
+import org.tensorflow.lite.Delegate;
 import org.tensorflow.lite.Interpreter;
+import org.tensorflow.lite.gpu.GpuDelegate;
 
 
 public class StickerSuggestionsUtils {
@@ -106,8 +106,13 @@ public class StickerSuggestionsUtils {
         Completable.create((CompletableEmitter emitter) -> {
             try {
                 long currentUsedMemoryInMB = CommonUtils.getCurrentUsedMemoryInMB();
-                mappedByteBuffer = loadModelFile(context.getAssets(), "srmodel_8.tflite");
-                tflite = new Interpreter(mappedByteBuffer);
+                GpuDelegate delegate = new GpuDelegate();
+//                TfLiteDelegate obj
+                Interpreter.Options options = (new Interpreter.Options());
+                options.addDelegate(delegate);
+                MappedByteBuffer mappedByteBuffer = loadModelFile(context.getAssets(), "bow_model_100_8.tflite");
+//                final ByteBuffer byteBuffer = loadModelFileByteBuffer(context.getAssets(), "tflite_8_hidden_2.tflite");
+                tflite = new Interpreter(mappedByteBuffer, options);
                 MY_PATTERN = Pattern.compile(regex);
 //                prevMsgLines = loadTextFileFromAssets(context, "vocab.prev");
 //                typedMsgLines = loadTextFileFromAssets(context, "vocab.typed");
@@ -144,12 +149,12 @@ public class StickerSuggestionsUtils {
             ArrayList<String> currentMsgTokens = getTokens(typedMessage);
 //            probabilities = new float[1][clusteredMsgLines.size()];
 //            float[][] probabilities = new float[1][49999];
-            float[][] probabilities = new float[1][9936];
+//            float[][] probabilities = new float[1][9936];
+            float[][] probabilities = new float[1][99999];
 //            getPrevMsgInput(prevMsgTokens);
 //            getTypedMsgInput(currentMsgTokens);
-//            Object[] objects = convertQuantizeInput(prevMsgTokens, currentMsgTokens);
-            Object[] objects = new Object[]{new int[1][50000], new int[1][14066]};  // use tflite.getInputTensor(0) -> see shapeCopy which shows size 0 = 1 , 1 = 14066 ...
-
+//            Object[] objects = convertCNNQuantizeInput(prevMsgTokens, currentMsgTokens);
+            Object[] objects = new Object[]{new int[1][50000], new int[1][50000]};  // use tflite.getInputTensor(0) -> see shapeCopy which shows size 0 = 1 , 1 = 14066 ...
 
 //            PriorityQueue<PriorityIndexClass> queue = new PriorityQueue<>(100);
 //            ByteBuffer inputData = ConvertInputtoByteBufferQuantize(prevMsgTokens,currentMsgTokens);
@@ -220,10 +225,11 @@ public class StickerSuggestionsUtils {
 
     private Object[] convertCNNQuantizeInput(ArrayList<String> prevMsgTokens, ArrayList<String> currentMsgTokens) {
         int[][] prevInputAry = new int[1][50000];
-        int[][] typingInputAry = new int[1][50];
-        int[] charLenArray = new int[]{50};
+        final int MAX_CHAR_LENGTH = 10;
+        int[][] typingInputAry = new int[1][MAX_CHAR_LENGTH];
+        int[] charLenArray = new int[]{MAX_CHAR_LENGTH};
 
-        for (int i = 0; i < 50; i++) {
+        for (int i = 0; i < MAX_CHAR_LENGTH; i++) {
             typingInputAry[0][i] = i;
         }
         return new Object[]{prevInputAry, typingInputAry, charLenArray};
@@ -490,6 +496,14 @@ public class StickerSuggestionsUtils {
         MappedByteBuffer tfLiteMappedBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
         fileDescriptor.close();
         return tfLiteMappedBuffer;
+    }
+
+    private ByteBuffer loadModelFileByteBuffer(AssetManager assetManager, String modelPath) throws IOException {
+        InputStream inputStream = assetManager.open(modelPath);
+//        FileInputStream inputStream = new FileInputStream(new Inpu);
+//        new ByteArrayInputStream(inputStream.re)
+        return ByteBuffer.wrap(ByteStreamsKt.readBytes(inputStream));
+//        ByteBuffer.wrap(inputStream.re)
     }
 
 
