@@ -17,6 +17,6 @@ class MyApplication : Application() {
     }
 
     fun showToast(msg: String) {
-        handler.post { Toast.makeText(this, msg, Toast.LENGTH_SHORT).show() }
+        handler.post { Toast.makeText(this, msg, Toast.LENGTH_LONG).show() }
     }
 }

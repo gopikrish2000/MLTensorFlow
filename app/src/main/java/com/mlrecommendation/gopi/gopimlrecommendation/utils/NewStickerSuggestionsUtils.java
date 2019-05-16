@@ -3,32 +3,29 @@ package com.mlrecommendation.gopi.gopimlrecommendation.utils;
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
-import android.util.Log;
 import android.os.SystemClock;
-
-
-import java.io.*;
-import java.nio.MappedByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import android.widget.Toast;
+import android.util.Log;
 import com.mlrecommendation.gopi.gopimlrecommendation.MyApplication;
 import io.reactivex.Completable;
 import io.reactivex.CompletableEmitter;
 import io.reactivex.schedulers.Schedulers;
-
 import kotlin.io.ByteStreamsKt;
-import org.tensorflow.lite.Delegate;
 import org.tensorflow.lite.Interpreter;
 import org.tensorflow.lite.gpu.GpuDelegate;
 
+import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Random;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-public class StickerSuggestionsUtils {
+
+public class NewStickerSuggestionsUtils {
     private static final String TAG = "StickerSuggestionsUtils";
     private static final String STICKER_REGEX = "(?:[\\w]+:[\\w]+[!]?.png)";
     private static final String NUDGE_REGEX = "(?:nudge!|Nudge!)";
@@ -78,10 +75,10 @@ public class StickerSuggestionsUtils {
     boolean isNewFlow = true;
     Interpreter tflite;
     private static final float MIN_VALUE = 0.001f;
-    private static StickerSuggestionsUtils instance;
+    private static NewStickerSuggestionsUtils instance;
 
 
-    private StickerSuggestionsUtils() {
+    private NewStickerSuggestionsUtils() {
         this.context = MyApplication.Companion.getInstance();
         loadMLModel();
 
@@ -93,9 +90,9 @@ public class StickerSuggestionsUtils {
         //currMessageEmbedding = loadEmbeddingFromFile(context,"vocab.typed" );
     }
 
-    public static StickerSuggestionsUtils getInstance() {
+    public static NewStickerSuggestionsUtils getInstance() {
         if(instance == null){
-            instance = new StickerSuggestionsUtils();
+            instance = new NewStickerSuggestionsUtils();
         }
         return instance;
     }
