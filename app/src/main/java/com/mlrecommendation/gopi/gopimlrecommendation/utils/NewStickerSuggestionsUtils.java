@@ -107,7 +107,7 @@ public class NewStickerSuggestionsUtils {
 //                TfLiteDelegate obj
                 Interpreter.Options options = (new Interpreter.Options());
                 options.addDelegate(delegate);
-                MappedByteBuffer mappedByteBuffer = loadModelFile(context.getAssets(), "bow50_tflite_8.tflite");
+                MappedByteBuffer mappedByteBuffer = loadModelFile(context.getAssets(), "new_tflite_8.tflite");
 //                final ByteBuffer byteBuffer = loadModelFileByteBuffer(context.getAssets(), "tflite_8_hidden_2.tflite");
                 tflite = new Interpreter(mappedByteBuffer, options);
                 MY_PATTERN = Pattern.compile(regex);
@@ -203,7 +203,7 @@ public class NewStickerSuggestionsUtils {
 //            Log.e(TAG, "Number of prediction yet " + numberOfprediction);
 //            Toast.makeText(context," Success with "+ probabilities[0][1] + " in time " + (endTime - startTime) ,Toast.LENGTH_SHORT).show();
 //            Toast.makeText(context," Success with "+ probabilities[0][1] + " in 1000 iterations time " + averageTimeTaken ,Toast.LENGTH_SHORT).show();
-            MyApplication.Companion.getInstance().showToast(" Success with "+ probabilities[0][1] + " in 1000 iterations time " + averageTimeTaken);
+            MyApplication.Companion.getInstance().showToast(" Success with "+ probabilities[0][1] + " in 100 iterations time " + averageTimeTaken);
         }
         catch (Exception e) {
             e.printStackTrace();

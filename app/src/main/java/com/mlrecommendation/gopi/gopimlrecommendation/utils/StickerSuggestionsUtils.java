@@ -16,14 +16,13 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import android.widget.Toast;
+import android.widget.TextView;
 import com.mlrecommendation.gopi.gopimlrecommendation.MyApplication;
 import io.reactivex.Completable;
 import io.reactivex.CompletableEmitter;
 import io.reactivex.schedulers.Schedulers;
 
 import kotlin.io.ByteStreamsKt;
-import org.tensorflow.lite.Delegate;
 import org.tensorflow.lite.Interpreter;
 import org.tensorflow.lite.gpu.GpuDelegate;
 
@@ -110,7 +109,7 @@ public class StickerSuggestionsUtils {
 //                TfLiteDelegate obj
                 Interpreter.Options options = (new Interpreter.Options());
                 options.addDelegate(delegate);
-                MappedByteBuffer mappedByteBuffer = loadModelFile(context.getAssets(), "bow50_tflite_8.tflite");
+                MappedByteBuffer mappedByteBuffer = loadModelFile(context.getAssets(), "new_tflite_8.tflite");
 //                final ByteBuffer byteBuffer = loadModelFileByteBuffer(context.getAssets(), "tflite_8_hidden_2.tflite");
                 tflite = new Interpreter(mappedByteBuffer, options);
                 MY_PATTERN = Pattern.compile(regex);
@@ -127,7 +126,10 @@ public class StickerSuggestionsUtils {
                 .subscribe(RxUtils.getCompletableObserver());
     }
 
-    public void getRecStickers(String lastReceivedMsg, String messageTyped) {
+    public float mAverageTimeTaken = 0, mOverAllAverage = 0;
+    public float numberOfIterations = 1;
+
+    public void getRecStickers(String lastReceivedMsg, String messageTyped, TextView showResultsTv, TextView overallAverageTv) {
        /* ArrayList<Pair<String,String>> pairArrayList = new ArrayList<>(10);
         for (int i = 0; i < 20; i++) {
             String outputLine = outputLines.get(new Random().nextInt(4036));
@@ -154,16 +156,16 @@ public class StickerSuggestionsUtils {
 //            float[][] probabilities = new float[1][99999];
 //            getPrevMsgInput(prevMsgTokens);
 //            getTypedMsgInput(currentMsgTokens);
-//            Object[] objects = convertCNNQuantizeInput(prevMsgTokens, currentMsgTokens);
-            final int[][] prevAry = new int[1][50000];
-            final int[][] typedAry = new int[1][50000];
+            Object[] objects = convertCNNQuantizeInput(prevMsgTokens, currentMsgTokens);
+//            final int[][] prevAry = new int[1][50000];
+//            final int[][] typedAry = new int[1][50000];
            /* for (int i = 0; i < prevAry[0].length; i++) {
                 prevAry[0][i] = 1;
             }
             for (int i = 0; i < typedAry[0].length; i++) {
                 typedAry[0][i] = 1;
             }*/
-            Object[] objects = new Object[]{prevAry, typedAry};  // use tflite.getInputTensor(0) -> see shapeCopy which shows size 0 = 1 , 1 = 14066 ...
+//            Object[] objects = new Object[]{prevAry, typedAry};  // use tflite.getInputTensor(0) -> see shapeCopy which shows size 0 = 1 , 1 = 14066 ...
 
 //            PriorityQueue<PriorityIndexClass> queue = new PriorityQueue<>(100);
 //            ByteBuffer inputData = ConvertInputtoByteBufferQuantize(prevMsgTokens,currentMsgTokens);
@@ -206,7 +208,15 @@ public class StickerSuggestionsUtils {
 //            Log.e(TAG, "Number of prediction yet " + numberOfprediction);
 //            Toast.makeText(context," Success with "+ probabilities[0][1] + " in time " + (endTime - startTime) ,Toast.LENGTH_SHORT).show();
 //            Toast.makeText(context," Success with "+ probabilities[0][1] + " in 1000 iterations time " + averageTimeTaken ,Toast.LENGTH_SHORT).show();
-            MyApplication.Companion.getInstance().showToast(" Success with "+ probabilities[0][1] + " in 1000 iterations time " + averageTimeTaken);
+            MyApplication.Companion.getInstance().showToast(" Success with "+ probabilities[0][1] + " in 100 iterations time " + averageTimeTaken);
+            mAverageTimeTaken = averageTimeTaken;
+            mOverAllAverage = (mOverAllAverage * ((numberOfIterations-1)/numberOfIterations)) + (averageTimeTaken/numberOfIterations);
+            showResultsTv.post(() -> {
+                final String output = showResultsTv.getText().toString() + ":::" + mAverageTimeTaken + ":::\t\t";
+                showResultsTv.setText(output);
+                overallAverageTv.setText("Overall Average: " + mOverAllAverage);
+            });
+            numberOfIterations++;
         }
         catch (Exception e) {
             e.printStackTrace();
