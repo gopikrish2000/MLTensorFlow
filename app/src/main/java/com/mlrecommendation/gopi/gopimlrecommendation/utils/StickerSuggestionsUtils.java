@@ -103,23 +103,33 @@ public class StickerSuggestionsUtils {
 
     private void loadMLModel() {
         Completable.create((CompletableEmitter emitter) -> {
+            MappedByteBuffer mappedByteBuffer = null;
             try {
+                MY_PATTERN = Pattern.compile(regex);
                 long currentUsedMemoryInMB = CommonUtils.getCurrentUsedMemoryInMB();
+                Interpreter.Options options = (new Interpreter.Options());
+                mappedByteBuffer = loadModelFile(context.getAssets(), "new_tflite_8.tflite");
                 GpuDelegate delegate = new GpuDelegate();
 //                TfLiteDelegate obj
-                Interpreter.Options options = (new Interpreter.Options());
                 options.addDelegate(delegate);
-                MappedByteBuffer mappedByteBuffer = loadModelFile(context.getAssets(), "new_tflite_8.tflite");
-//                final ByteBuffer byteBuffer = loadModelFileByteBuffer(context.getAssets(), "tflite_8_hidden_2.tflite");
                 tflite = new Interpreter(mappedByteBuffer, options);
-                MY_PATTERN = Pattern.compile(regex);
 //                prevMsgLines = loadTextFileFromAssets(context, "vocab.prev");
 //                typedMsgLines = loadTextFileFromAssets(context, "vocab.typed");
 //                clusteredMsgLines = loadTextFileFromAssets(context, "cluster_map.out");
                 MyApplication.Companion.getInstance().showToast("TFLite LOADING SUCCESS*** memory "+ (CommonUtils.getCurrentUsedMemoryInMB() - currentUsedMemoryInMB));
             } catch (Throwable e) {
                 e.printStackTrace();
-                MyApplication.Companion.getInstance().showToast("TFLite LOADING FAILED*** with " + e.getMessage());
+                MyApplication.Companion.getInstance().showToast("TFLite LOADING GPU FAILED*** trying CPU fallback with " + e.getMessage());
+
+
+                try {
+                    tflite = new Interpreter(mappedByteBuffer, new Interpreter.Options());
+                    MyApplication.Companion.getInstance().showToast("TFLite LOADING SUCCESS*** memory ");
+                } catch (Exception e1) {
+                    e.printStackTrace();
+                    MyApplication.Companion.getInstance().showToast("TFLite ALL LOADING FAILED*** with " + e.getMessage());
+                }
+
             }
             emitter.onComplete();
         }).subscribeOn(Schedulers.io())
