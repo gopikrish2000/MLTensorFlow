@@ -108,7 +108,7 @@ public class StickerSuggestionsUtils {
                 MY_PATTERN = Pattern.compile(regex);
                 long currentUsedMemoryInMB = CommonUtils.getCurrentUsedMemoryInMB();
                 Interpreter.Options options = (new Interpreter.Options());
-                mappedByteBuffer = loadModelFile(context.getAssets(), "new_tflite_8.tflite");
+                mappedByteBuffer = loadModelFile(context.getAssets(), "latest_tflite_8.tflite");
                 GpuDelegate delegate = new GpuDelegate();
 //                TfLiteDelegate obj
                 options.addDelegate(delegate);
@@ -161,9 +161,10 @@ public class StickerSuggestionsUtils {
             ArrayList<String> prevMsgTokens = getTokens(lastMsgMessageText);
             ArrayList<String> currentMsgTokens = getTokens(typedMessage);
 //            probabilities = new float[1][clusteredMsgLines.size()];
-            float[][] probabilities = new float[1][49999];
+//            float[][] probabilities = new float[1][49999];
 //            float[][] probabilities = new float[1][9936];
 //            float[][] probabilities = new float[1][99999];
+            float[][] probabilities = new float[2][20];
 //            getPrevMsgInput(prevMsgTokens);
 //            getTypedMsgInput(currentMsgTokens);
             Object[] objects = convertCNNQuantizeInput(prevMsgTokens, currentMsgTokens);
